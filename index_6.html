@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SITGRA4ALL — Diagrama de Turnos</title>
+
+<!-- ============================================================
+     FIREBASE: pegá acá tus 6 datos (Firebase Console > Configuración
+     del proyecto > Tus apps > Config del SDK). El código que usa estos
+     datos está al final de la página (antes de </body>), no acá arriba,
+     para asegurarnos de que los botones ya existan cuando se conecta.
+     ============================================================ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<style>
+  :root{
+    --purple:#6c63d8;
+    --purple-dark:#524ab8;
+    --bg:#f4f3fb;
+    --card:#ffffff;
+    --ink:#2b2b40;
+    --muted:#7a7a92;
+    --border:#e3e1f5;
+    --franco:#e74c3c;
+    --manana:#2f7de1;
+    --tarde:#f0c419;
+    --noche:#27ae60;
+    --licencia:#e6198f;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    padding:24px;
+  }
+  h1{font-size:22px;margin:0 0 4px;}
+  h2{font-size:16px;margin:0 0 12px;color:var(--purple-dark);}
+  .subtitle{color:var(--muted);font-size:13px;margin-bottom:20px;}
+  .card{
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:20px;
+    margin-bottom:20px;
+    box-shadow:0 2px 10px rgba(90,80,180,0.08);
+  }
+  .row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600;}
+  input[type=text], input[type=number], input[type=email], input[type=password], select, input[type=date]{
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:14px;
+    background:#fafaff;
+    color:var(--ink);
+  }
+  button{
+    border:none;
+    border-radius:8px;
+    padding:9px 16px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    background:var(--purple);
+    color:#fff;
+    transition:.15s;
+  }
+  button:hover{background:var(--purple-dark);}
+  button.secondary{background:#eceafb;color:var(--purple-dark);}
+  button.secondary:hover{background:#ded9f7;}
+  button.danger{background:#fdeceb;color:var(--franco);}
+  button.danger:hover{background:#fadcd9;}
+  button.link{background:none;color:var(--purple-dark);padding:4px 0;text-decoration:underline;font-weight:500;}
+  table{border-collapse:collapse;width:100%;font-size:12px;}
+  th,td{border:1px solid var(--border);padding:6px 8px;text-align:center;}
+  th{background:var(--purple);color:#fff;font-weight:600;}
+  .agentes-table th, .agentes-table td{text-align:left;}
+  .agentes-table td.center{text-align:center;}
+  .logo-box{
+    width:70px;height:70px;border:1.5px dashed var(--border);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    cursor:pointer;background:#fafaff;flex-shrink:0;
+  }
+  .logo-box img{width:100%;height:100%;object-fit:contain;}
+  .logo-box span{font-size:10px;color:var(--muted);text-align:center;padding:4px;}
+  .header-flex{display:flex;gap:16px;align-items:center;}
+  .fijo-grid{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
+  .fijo-day{
+    width:30px;height:30px;border:1px solid var(--border);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;font-size:11px;
+    cursor:pointer;background:#fafaff;user-select:none;
+  }
+  .fijo-day.F{background:var(--franco);color:#fff;border-color:var(--franco);}
+  .fijo-day.L{background:var(--licencia);color:#fff;border-color:var(--licencia);}
+  .fijo-day.M{background:var(--manana);color:#fff;border-color:var(--manana);}
+  .fijo-day.T{background:var(--tarde);color:#3a2f00;border-color:var(--tarde);}
+  .fijo-day.N{background:var(--noche);color:#fff;border-color:var(--noche);}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0;font-size:12px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:14px;height:14px;border-radius:3px;display:inline-block;}
+  .schedule-wrap{overflow-x:auto;}
+  td.turno{font-weight:700;color:transparent;background:#fff;cursor:pointer;}
+  td.turno.F{background:linear-gradient(135deg, transparent 42%, var(--franco) 42%, var(--franco) 58%, transparent 58%);}
+  td.turno.M{background:linear-gradient(135deg, transparent 42%, var(--manana) 42%, var(--manana) 58%, transparent 58%);}
+  td.turno.T{background:linear-gradient(135deg, transparent 42%, var(--tarde) 42%, var(--tarde) 58%, transparent 58%);}
+  td.turno.N{background:linear-gradient(135deg, transparent 42%, var(--noche) 42%, var(--noche) 58%, transparent 58%);}
+  td.turno.L{background:linear-gradient(135deg, transparent 42%, var(--licencia) 42%, var(--licencia) 58%, transparent 58%);}
+  td.footer-row{background:#f0eefd;font-weight:700;color:var(--purple-dark);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .empty-msg{color:var(--muted);font-size:13px;padding:20px;text-align:center;}
+  .agent-name-col{min-width:150px;}
+  .print-header{display:none;}
+  .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .top-bar .who{font-size:12px;color:var(--muted);}
+
+  #loginScreen{
+    min-height:80vh;display:flex;align-items:center;justify-content:center;
+  }
+  .login-card{
+    background:var(--card);border-radius:var(--radius);padding:36px 32px;
+    width:100%;max-width:360px;box-shadow:0 4px 24px rgba(90,80,180,0.15);
+  }
+  .login-card h1{color:var(--purple-dark);text-align:center;}
+  .login-card .subtitle{text-align:center;}
+  .login-card form{display:flex;flex-direction:column;gap:12px;margin-top:10px;}
+  .login-card button[type=submit]{padding:11px;font-size:14px;}
+  #loginError{font-size:12px;min-height:16px;color:var(--franco);text-align:center;}
+
+  @media print{
+    @page{ size: landscape; margin: 8mm; }
+    html, body{width:auto;height:auto;overflow:visible;padding:0;background:#fff;}
+    .no-print{display:none !important;}
+    .card{box-shadow:none;padding:0;margin-bottom:10px;overflow:visible;}
+    .print-header{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+    .print-header img{max-height:60px;}
+    .schedule-wrap{overflow:visible !important;width:auto !important;}
+    table{font-size:7px;width:100%;table-layout:auto;border-collapse:collapse;}
+    th, td{padding:2px 3px;}
+    tr, td, th{page-break-inside:avoid;}
+    thead{display:table-header-group;}
+    /* Que los colores de fondo (las barras) se impriman de verdad */
+    *{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>SITGRA4ALL</h1>
+    <div class="subtitle">Diagrama de Turnos — Iniciá sesión para gestionar el diagrama</div>
+    <form id="loginForm">
+      <div>
+        <label>Mail</label>
+        <input type="email" id="loginEmail" required placeholder="tu@mail.com">
+      </div>
+      <div>
+        <label>Contraseña</label>
+        <input type="password" id="loginPass" required placeholder="••••••••">
+      </div>
+      <button type="submit">Iniciar sesión</button>
+      <button type="button" class="link" id="forgotPassBtn">¿Olvidaste tu contraseña?</button>
+      <div id="loginError"></div>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen" style="display:none;">
+
+<div class="top-bar no-print">
+  <div class="who">Sesión: <strong id="userEmail"></strong></div>
+  <button class="secondary" id="logoutBtn">Cerrar sesión</button>
+</div>
+
+<div class="no-print">
+  <h1>SITGRA4ALL — Diagrama de Turnos</h1>
+  <div class="subtitle">Armado de guardias mensual — carga de agentes, francos/licencias y generación automática del diagrama.</div>
+</div>
+
+<!-- CONFIGURACIÓN -->
+<div class="card no-print">
+  <h2>1. Datos del servicio</h2>
+  <div class="header-flex">
+    <div class="logo-box" id="logoBox" onclick="document.getElementById('logoInput').click()">
+      <span id="logoPlaceholder">Subir<br>logo</span>
+      <img id="logoImg" style="display:none;">
+    </div>
+    <input type="file" id="logoInput" accept="image/*" style="display:none;">
+    <div class="row" style="flex:1;">
+      <div>
+        <label>Nombre del sanatorio / servicio</label>
+        <input type="text" id="nombreServicio" placeholder="Ej: Sanatorio San Martín — Enfermería">
+      </div>
+      <div>
+        <label>Mes</label>
+        <select id="mesSelect"></select>
+      </div>
+      <div>
+        <label>Año</label>
+        <input type="number" id="anioSelect" style="width:90px;">
+      </div>
+      <div>
+        <label>Mínimo agentes — Mañana</label>
+        <input type="number" id="minM" value="1" style="width:70px;">
+      </div>
+      <div>
+        <label>Mínimo agentes — Tarde</label>
+        <input type="number" id="minT" value="1" style="width:70px;">
+      </div>
+      <div>
+        <label>Mínimo agentes — Noche</label>
+        <input type="number" id="minN" value="1" style="width:70px;">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AGENTES -->
+<div class="card no-print">
+  <h2>2. Agentes (fijos para el mes)</h2>
+  <div class="row" style="margin-bottom:12px;">
+    <div><label>Nombre y Apellido</label><input type="text" id="agNombre" placeholder="Ej: López Andrea"></div>
+    <div><label>DNI</label><input type="text" id="agDni" style="width:110px;"></div>
+    <div><label>Legajo</label><input type="text" id="agLegajo" style="width:90px;"></div>
+    <div><label>Meta hs/mes</label><input type="number" id="agMeta" value="154" style="width:90px;"></div>
+    <button onclick="agregarAgente()">+ Agregar agente</button>
+  </div>
+  <div class="subtitle" style="margin:0 0 8px;">Tocá un día para pedirlo fijo: cada click rota el pedido — Franco → Mañana → Tarde → Noche → Licencia → (vacío, sin pedido).</div>
+  <table class="agentes-table">
+    <thead><tr><th>Nombre y Apellido</th><th>DNI</th><th>Legajo</th><th>Meta hs</th><th>Pedidos (franco / turno / licencia)</th><th></th></tr></thead>
+    <tbody id="agentesBody"></tbody>
+  </table>
+</div>
+
+<!-- ACCIONES -->
+<div class="toolbar no-print">
+  <button onclick="generarDiagrama()">⚙ Generar diagrama automáticamente</button>
+  <button class="secondary" onclick="window.print()">🖨 Imprimir / Guardar como PDF</button>
+  <button class="secondary" id="btnGuardarCopia" onclick="exportarJSON()">⬇ Guardar copia (archivo)</button>
+  <button class="secondary" onclick="document.getElementById('importInput').click()">⬆ Abrir copia guardada</button>
+  <input type="file" id="importInput" accept=".json" style="display:none;">
+  <button class="danger" onclick="borrarDiagrama()">Borrar diagrama generado</button>
+</div>
+
+<div class="legend no-print">
+  <span><i style="background:var(--manana)"></i> T. Mañana (7 a 14hs)</span>
+  <span><i style="background:var(--tarde)"></i> T. Tarde (14 a 21hs)</span>
+  <span><i style="background:var(--noche)"></i> T. Noche (21 a 7hs)</span>
+  <span><i style="background:var(--franco)"></i> Franco</span>
+  <span><i style="background:var(--licencia)"></i> Licencia</span>
+  <span><i style="background:
+      linear-gradient(135deg, transparent 54%, var(--tarde) 54%, var(--tarde) 70%, transparent 70%),
+      linear-gradient(135deg, transparent 30%, var(--manana) 30%, var(--manana) 46%, transparent 46%);
+      background-color:#fff;border:1px solid var(--border);"></i> Recargo (turno + turno extra, dos barras)</span>
+</div>
+
+<!-- RESULTADO -->
+<div class="card">
+  <div class="print-header">
+    <img id="printLogo">
+    <div>
+      <div style="font-weight:700;font-size:16px;" id="printTitle"></div>
+      <div style="font-size:12px;color:#666;" id="printSubtitle"></div>
+    </div>
+  </div>
+  <h2 class="no-print">3. Diagrama</h2>
+  <div class="subtitle no-print" style="margin-top:-8px;">Una vez generado, tocá cualquier celda del diagrama para marcarle un <strong>recargo</strong> (turno extra ese día): rota Mañana → Tarde → Noche → sin recargo. Se pinta como una segunda barra de color superpuesta.</div>
+  <div class="schedule-wrap" id="scheduleWrap">
+    <div class="empty-msg">Cargá los agentes y sus francos/licencias, después tocá "Generar diagrama automáticamente".</div>
+  </div>
+</div>
+
+</div><!-- /appScreen -->
+
+<script>
+const LS_KEY = 'diagramaTurnosData';
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_SEM = ['D','L','M','M','J','V','S'];
+// Horas fijas de cada turno: Mañana 7 a 14 (7hs), Tarde 14 a 21 (7hs), Noche 21 a 7 (10hs)
+const TURNO_HORAS = {M:7, T:7, N:10};
+
+let state = {
+  logo: null,
+  nombreServicio: '',
+  mes: new Date().getMonth(),
+  anio: new Date().getFullYear(),
+  minM: 1, minT: 1, minN: 1,
+  agentes: [], // {id, nombre, dni, legajo, meta, fijos:{dia:'F'|'M'|'T'|'N'|'L'}}
+  schedule: null,
+  recargos: {} // {agentId: {dia: 'M'|'T'|'N'}} — turno extra superpuesto ese día
+};
+
+function uid(){ return 'a' + Math.random().toString(36).slice(2,9); }
+function diasEnMes(mes, anio){ return new Date(anio, mes+1, 0).getDate(); }
+
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function load(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(raw){
+    try{
+      const loaded = JSON.parse(raw);
+      // migración: si algún agente viejo tiene "francos" (array) en vez de "fijos", lo convertimos
+      if(loaded.agentes){
+        loaded.agentes.forEach(ag=>{
+          if(ag.francos && !ag.fijos){
+            ag.fijos = {};
+            ag.francos.forEach(d=>{ ag.fijos[d] = 'F'; });
+            delete ag.francos;
+          }
+          if(!ag.fijos) ag.fijos = {};
+        });
+      }
+      state = Object.assign(state, loaded);
+      if(!state.recargos) state.recargos = {};
+    }catch(e){}
+  }
+}
+
+function initApp(){
+  const mesSel = document.getElementById('mesSelect');
+  mesSel.innerHTML = MESES.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+  mesSel.value = state.mes;
+  document.getElementById('anioSelect').value = state.anio;
+  document.getElementById('nombreServicio').value = state.nombreServicio;
+  document.getElementById('minM').value = state.minM;
+  document.getElementById('minT').value = state.minT;
+  document.getElementById('minN').value = state.minN;
+
+  mesSel.onchange = ()=>{ state.mes = parseInt(mesSel.value); save(); renderAgentes(); renderSchedule(); };
+  document.getElementById('anioSelect').onchange = (e)=>{ state.anio = parseInt(e.target.value)||state.anio; save(); renderAgentes(); renderSchedule(); };
+  document.getElementById('nombreServicio').onchange = (e)=>{ state.nombreServicio = e.target.value; save(); };
+  document.getElementById('minM').onchange = (e)=>{ state.minM = parseInt(e.target.value)||0; save(); };
+  document.getElementById('minT').onchange = (e)=>{ state.minT = parseInt(e.target.value)||0; save(); };
+  document.getElementById('minN').onchange = (e)=>{ state.minN = parseInt(e.target.value)||0; save(); };
+
+  document.getElementById('logoInput').onchange = (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{ state.logo = reader.result; save(); renderLogo(); };
+    reader.readAsDataURL(file);
+  };
+
+  renderLogo();
+  renderAgentes();
+  renderSchedule();
+}
+window._onLoggedIn = initApp;
+
+function renderLogo(){
+  const img = document.getElementById('logoImg');
+  const ph = document.getElementById('logoPlaceholder');
+  const printLogo = document.getElementById('printLogo');
+  if(state.logo){
+    img.src = state.logo; img.style.display='block'; ph.style.display='none';
+    printLogo.src = state.logo; printLogo.style.display='block';
+  } else {
+    printLogo.style.display='none';
+  }
+}
+
+function agregarAgente(){
+  const nombre = document.getElementById('agNombre').value.trim();
+  const dni = document.getElementById('agDni').value.trim();
+  const legajo = document.getElementById('agLegajo').value.trim();
+  const meta = parseFloat(document.getElementById('agMeta').value) || 154;
+  if(!nombre){ alert('Poné el nombre del agente.'); return; }
+  state.agentes.push({id:uid(), nombre, dni, legajo, meta, fijos:{}});
+  document.getElementById('agNombre').value='';
+  document.getElementById('agDni').value='';
+  document.getElementById('agLegajo').value='';
+  document.getElementById('agMeta').value='154';
+  save();
+  renderAgentes();
+}
+
+function eliminarAgente(id){
+  if(!confirm('¿Eliminar este agente?')) return;
+  state.agentes = state.agentes.filter(a=>a.id!==id);
+  save(); renderAgentes(); renderSchedule();
+}
+
+function ciclarFijo(agentId, dia){
+  const ag = state.agentes.find(a=>a.id===agentId);
+  const orden = ['F','M','T','N','L'];
+  const actual = ag.fijos[dia];
+  const idx = orden.indexOf(actual);
+  if(idx === -1) ag.fijos[dia] = orden[0];
+  else if(idx === orden.length - 1) delete ag.fijos[dia];
+  else ag.fijos[dia] = orden[idx+1];
+  save();
+}
+
+function renderAgentes(){
+  const body = document.getElementById('agentesBody');
+  const totalDias = diasEnMes(state.mes, state.anio);
+  body.innerHTML = state.agentes.map(ag=>{
+    const dias = Array.from({length: totalDias}, (_,i)=>i+1);
+    const grid = dias.map(d=>{
+      const estado = ag.fijos[d] || '';
+      return `<div class="fijo-day ${estado}" onclick="ciclarFijo('${ag.id}',${d});renderAgentes()">${d}</div>`;
+    }).join('');
+    return `<tr>
+      <td class="agent-name-col">${ag.nombre}</td>
+      <td class="center">${ag.dni||'-'}</td>
+      <td class="center">${ag.legajo||'-'}</td>
+      <td class="center">${ag.meta}</td>
+      <td><div class="fijo-grid">${grid}</div></td>
+      <td class="center"><button class="danger" onclick="eliminarAgente('${ag.id}')">Eliminar</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty-msg">Todavía no cargaste agentes.</td></tr>';
+}
+
+function generarDiagrama(){
+  if(state.agentes.length===0){ alert('Cargá al menos un agente primero.'); return; }
+  const totalDias = diasEnMes(state.mes, state.anio);
+  const minTurnos = {M: state.minM, T: state.minT, N: state.minN};
+
+  const schedule = {};
+  const horasAcumuladas = {};
+  const horasRestantes = {};
+
+  // 1) Volcamos los pedidos fijos de cada agente (franco, licencia, o un turno pedido)
+  state.agentes.forEach(ag=>{
+    schedule[ag.id] = {};
+    horasAcumuladas[ag.id] = 0;
+    Object.keys(ag.fijos).forEach(dStr=>{
+      const t = ag.fijos[dStr];
+      schedule[ag.id][dStr] = t;
+      if(TURNO_HORAS[t]) horasAcumuladas[ag.id] += TURNO_HORAS[t];
+    });
+    horasRestantes[ag.id] = Math.max(0, ag.meta - horasAcumuladas[ag.id]);
+  });
+
+  // 2) Contamos cobertura ya cubierta por los pedidos fijos, día por día
+  const conteoPorDiaTurno = {};
+  for(let d=1; d<=totalDias; d++){ conteoPorDiaTurno[d] = {M:0,T:0,N:0}; }
+  state.agentes.forEach(ag=>{
+    Object.keys(schedule[ag.id]).forEach(dStr=>{
+      const t = schedule[ag.id][dStr];
+      if(TURNO_HORAS[t] !== undefined) conteoPorDiaTurno[dStr][t]++;
+    });
+  });
+
+  // 3) Completamos los días sin pedido, priorizando cubrir el mínimo por turno
+  //    y sin pasarnos de la meta de horas de cada agente
+  const turnosOrden = ['M','T','N'];
+  for(let d=1; d<=totalDias; d++){
+    const disponibles = state.agentes.filter(ag => schedule[ag.id][d] === undefined && horasRestantes[ag.id] > 0);
+    disponibles.forEach(ag=>{
+      if(horasRestantes[ag.id] <= 0) return;
+      let mejorTurno = null, mejorDeficit = -Infinity;
+      turnosOrden.forEach(t=>{
+        const deficit = minTurnos[t] - conteoPorDiaTurno[d][t];
+        if(deficit > mejorDeficit){ mejorDeficit = deficit; mejorTurno = t; }
+      });
+      schedule[ag.id][d] = mejorTurno;
+      conteoPorDiaTurno[d][mejorTurno]++;
+      horasAcumuladas[ag.id] += TURNO_HORAS[mejorTurno];
+      horasRestantes[ag.id] -= TURNO_HORAS[mejorTurno];
+    });
+  }
+
+  // 4) Lo que quede sin asignar (ya cumplió su meta de horas) queda como franco
+  state.agentes.forEach(ag=>{
+    for(let d=1; d<=totalDias; d++){
+      if(schedule[ag.id][d] === undefined) schedule[ag.id][d] = 'F';
+    }
+  });
+
+  state.schedule = schedule;
+  state._turnosAcumulados = horasAcumuladas;
+  state._minCoverageWarning = checkCobertura(conteoPorDiaTurno, totalDias, minTurnos);
+  save();
+  renderSchedule();
+}
+
+function toggleRecargo(agentId, dia){
+  if(!state.schedule) return; // solo tiene sentido sobre un diagrama ya generado
+  if(!state.recargos[agentId]) state.recargos[agentId] = {};
+  const orden = ['M','T','N'];
+  const actual = state.recargos[agentId][dia];
+  const idx = orden.indexOf(actual);
+  if(idx === -1) state.recargos[agentId][dia] = orden[0];
+  else if(idx === orden.length - 1) delete state.recargos[agentId][dia];
+  else state.recargos[agentId][dia] = orden[idx+1];
+  save();
+  renderSchedule();
+}
+
+function horasTotalesAgente(ag, totalDias){
+  let total = 0;
+  for(let d=1; d<=totalDias; d++){
+    const t = state.schedule[ag.id][d];
+    if(TURNO_HORAS[t]) total += TURNO_HORAS[t];
+    const r = state.recargos[ag.id] && state.recargos[ag.id][d];
+    if(r && TURNO_HORAS[r]) total += TURNO_HORAS[r];
+  }
+  return total;
+}
+
+
+function checkCobertura(conteo, totalDias, minTurnos){
+  const faltantes = [];
+  for(let d=1; d<=totalDias; d++){
+    ['M','T','N'].forEach(t=>{
+      if(conteo[d][t] < minTurnos[t]) faltantes.push(`Día ${d} — ${t==='M'?'Mañana':t==='T'?'Tarde':'Noche'} (cubiertos ${conteo[d][t]}/${minTurnos[t]})`);
+    });
+  }
+  return faltantes;
+}
+
+function borrarDiagrama(){
+  if(!confirm('¿Borrar el diagrama generado? (los agentes, francos y licencias se mantienen)')) return;
+  state.schedule = null;
+  save();
+  renderSchedule();
+}
+
+function renderSchedule(){
+  const wrap = document.getElementById('scheduleWrap');
+  document.getElementById('printTitle').textContent = state.nombreServicio || 'Diagrama de Turnos';
+  document.getElementById('printSubtitle').textContent = `${MESES[state.mes]} ${state.anio}`;
+
+  if(!state.schedule || state.agentes.length===0){
+    wrap.innerHTML = '<div class="empty-msg">Todavía no se generó el diagrama.</div>';
+    return;
+  }
+  const totalDias = diasEnMes(state.mes, state.anio);
+  const dias = Array.from({length: totalDias}, (_,i)=>i+1);
+
+  let html = '<table><thead><tr>';
+  html += '<th class="agent-name-col">Nombre y Apellido</th><th>DNI</th><th>HS mes</th>';
+  dias.forEach(d=> html += `<th>${d}</th>`);
+  html += '<th>Dif. hs</th>';
+  html += '</tr><tr><th colspan="3" style="background:#524ab8;">Día sem.</th>';
+  dias.forEach(d=>{
+    const fecha = new Date(state.anio, state.mes, d);
+    html += `<th style="background:#524ab8;font-weight:400;">${DIAS_SEM[fecha.getDay()]}</th>`;
+  });
+  html += '<th style="background:#524ab8;"></th>';
+  html += '</tr></thead><tbody>';
+
+  const COLOR_VAR = {F:'var(--franco)', M:'var(--manana)', T:'var(--tarde)', N:'var(--noche)', L:'var(--licencia)'};
+
+  state.agentes.forEach(ag=>{
+    const horasTotales = horasTotalesAgente(ag, totalDias);
+    const diferencia = horasTotales - ag.meta;
+    let difTexto, difColor;
+    if(diferencia === 0){ difTexto = '0hs'; difColor = '#7a7a92'; }
+    else if(diferencia > 0){ difTexto = `+${diferencia}hs`; difColor = '#c0392b'; } // le sobran horas trabajadas de más
+    else { difTexto = `${diferencia}hs`; difColor = '#1e7e45'; } // le faltan horas para llegar a la meta
+    html += `<tr><td class="agent-name-col">${ag.nombre}</td><td>${ag.dni||'-'}</td><td>${horasTotales}hs</td>`;
+    dias.forEach(d=>{
+      const t = state.schedule[ag.id][d] || 'F';
+      const rec = state.recargos[ag.id] && state.recargos[ag.id][d];
+      let cellStyle = '';
+      if(rec){
+        // dos barras diagonales superpuestas: la del turno base y la del recargo
+        cellStyle = `background:
+          linear-gradient(135deg, transparent 54%, ${COLOR_VAR[rec]} 54%, ${COLOR_VAR[rec]} 70%, transparent 70%),
+          linear-gradient(135deg, transparent 30%, ${COLOR_VAR[t]} 30%, ${COLOR_VAR[t]} 46%, transparent 46%);
+          background-color:#fff;`;
+      }
+      html += `<td class="turno ${rec?'':t}" style="${cellStyle}" title="${rec ? 'Turno + recargo' : ''}" onclick="toggleRecargo('${ag.id}',${d})"></td>`;
+    });
+    html += `<td style="font-weight:700;color:${difColor};background:#faf9fd;">${difTexto}</td>`;
+    html += '</tr>';
+  });
+
+  ['M','T','N'].forEach(turno=>{
+    const label = turno==='M' ? 'Agentes T. Mañana' : turno==='T' ? 'Agentes T. Tarde' : 'Agentes T. Noche';
+    html += `<tr><td colspan="3" class="footer-row" style="text-align:right;">${label}</td>`;
+    dias.forEach(d=>{
+      let count = 0;
+      state.agentes.forEach(ag=>{
+        if(state.schedule[ag.id][d]===turno) count++;
+        else if(state.recargos[ag.id] && state.recargos[ag.id][d]===turno) count++;
+      });
+      html += `<td class="footer-row">${count}</td>`;
+    });
+    html += '<td class="footer-row"></td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+
+  // Las conclusiones (avisos de cobertura) van DEBAJO del diagrama, no arriba.
+  // Además llevan "no-print": al imprimir solo sale el diagrama completo,
+  // no estos avisos internos de armado.
+  if(state._minCoverageWarning && state._minCoverageWarning.length){
+    html += `<div class="no-print" style="background:#fff4e5;border:1px solid #f5c667;border-radius:8px;padding:10px 14px;margin-top:14px;font-size:12px;color:#8a5a00;">
+      <strong>⚠ Atención:</strong> con el personal y los pedidos cargados no se llegó al mínimo pedido en algunos turnos:<br>
+      ${state._minCoverageWarning.slice(0,8).join('<br>')}${state._minCoverageWarning.length>8?'<br>…':''}
+    </div>`;
+  }
+
+  wrap.innerHTML = html;
+}
+
+function exportarJSON(){
+  const btn = document.getElementById('btnGuardarCopia');
+  try{
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `diagrama-${MESES[state.mes]}-${state.anio}.json`;
+    a.style.display = 'none';
+    document.body.appendChild(a); // clave: tiene que estar EN la página para que el click funcione en todos los navegadores
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+
+    if(btn){
+      btn.blur(); // saca el "marcado" visual del botón
+      const original = btn.textContent;
+      btn.textContent = '✓ Descargado';
+      setTimeout(()=>{ btn.textContent = original; }, 1600);
+    }
+  }catch(err){
+    if(btn) btn.blur();
+    alert('No se pudo guardar la copia. Error: ' + err.message + '\n\nProbá de nuevo, y si sigue sin funcionar avisame qué navegador estás usando.');
+  }
+}
+
+document.getElementById('importInput').onchange = (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      state = JSON.parse(reader.result);
+      save();
+      initApp();
+    }catch(err){ alert('No se pudo leer el archivo.'); }
+  };
+  reader.readAsText(file);
+};
+
+load();
+</script>
+
+<!-- ============================================================
+     Login: este bloque va acá, al final del <body>, a propósito —
+     así los botones (loginForm, logoutBtn, etc.) ya existen en la
+     página cuando el código intenta "engancharse" a ellos.
+     ============================================================ -->
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBkGS4MWvnZ0nndNH6VZWZ9VUCt8LRL_Rg",
+    authDomain: "sitgra4all.firebaseapp.com",
+    projectId: "sitgra4all",
+    storageBucket: "sitgra4all.firebasestorage.app",
+    messagingSenderId: "724415369975",
+    appId: "1:724415369975:web:140c32068d69015e1639f2"
+  };
+
+  // Usuario de PRUEBA para poder entrar y ver la app sin haber configurado
+  // Firebase todavía. Está a la vista en el código: NO usar esto como
+  // login real, es solo para probar. Sacar este bloque cuando esté listo
+  // el acceso definitivo de cada una.
+  const DEMO_EMAIL = 'admin@sanatorio.com';
+  const DEMO_PASS = '1234';
+
+  let auth = null;
+  let firebaseListo = false;
+
+  function mostrarApp(email){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('userEmail').textContent = email;
+    if(window._onLoggedIn) window._onLoggedIn({email});
+  }
+  function mostrarLogin(){
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+  }
+
+  // Intentamos inicializar Firebase. Si todavía no pegaste tus datos
+  // reales (o falla la config), la app NO se rompe: simplemente queda
+  // disponible el usuario de prueba de arriba.
+  try{
+    if(firebaseConfig.apiKey.indexOf('PEGAR_AQUI') === -1){
+      firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      firebaseListo = true;
+      auth.onAuthStateChanged(function(user){
+        if(user){ mostrarApp(user.email); }
+        else { mostrarLogin(); }
+      });
+    } else {
+      console.warn('SITGRA4ALL: firebaseConfig todavía tiene los valores de ejemplo (PEGAR_AQUI_...). El login real con Firebase está desactivado hasta que pegues tus datos. Por ahora podés entrar con el usuario de prueba.');
+    }
+  }catch(e){
+    console.error('SITGRA4ALL: error al inicializar Firebase.', e);
+  }
+
+  const loginForm = document.getElementById('loginForm');
+  const loginEmailInput = document.getElementById('loginEmail');
+  const loginPassInput = document.getElementById('loginPass');
+  const loginErrorDiv = document.getElementById('loginError');
+
+  if(!loginForm){
+    console.error('SITGRA4ALL: no se encontró el formulario de login (#loginForm). Revisá que el HTML no se haya modificado.');
+  } else {
+    loginForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      const email = loginEmailInput.value.trim();
+      const pass = loginPassInput.value;
+      loginErrorDiv.style.color = '#e74c3c';
+      loginErrorDiv.textContent = '';
+
+      if(email === DEMO_EMAIL && pass === DEMO_PASS){
+        mostrarApp(email + ' (modo prueba)');
+        return;
+      }
+
+      if(!firebaseListo){
+        loginErrorDiv.textContent = 'Ese mail/contraseña no coincide con el usuario de prueba, y el login real con Firebase todavía no está configurado en este archivo.';
+        return;
+      }
+
+      auth.signInWithEmailAndPassword(email, pass).catch(function(er){
+        loginErrorDiv.textContent = er.code === 'auth/invalid-credential'
+          ? 'Mail o contraseña incorrectos.'
+          : 'No se pudo iniciar sesión (' + er.code + ').';
+      });
+    });
+  }
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(logoutBtn){
+    logoutBtn.addEventListener('click', function(){
+      if(firebaseListo) auth.signOut();
+      mostrarLogin();
+    });
+  }
+
+  const forgotPassBtn = document.getElementById('forgotPassBtn');
+  if(forgotPassBtn){
+    forgotPassBtn.addEventListener('click', function(){
+      const email = loginEmailInput.value.trim();
+      loginErrorDiv.style.color = '#e74c3c';
+      if(!email){ loginErrorDiv.textContent = 'Escribí tu mail arriba y volvé a tocar "Olvidé mi contraseña".'; return; }
+      if(!firebaseListo){ loginErrorDiv.textContent = 'El acceso con Firebase todavía no está configurado.'; return; }
+      auth.sendPasswordResetEmail(email).then(function(){
+        loginErrorDiv.style.color = '#22a06b';
+        loginErrorDiv.textContent = 'Te enviamos un mail para restablecer la contraseña.';
+      }).catch(function(er){
+        loginErrorDiv.style.color = '#e74c3c';
+        loginErrorDiv.textContent = 'No se pudo enviar el mail (' + er.code + ').';
+      });
+    });
+  }
+</script>
+</body>
+</html>
